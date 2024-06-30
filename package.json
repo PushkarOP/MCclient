@@ -1,0 +1,20 @@
+{
+  "name": "minecraft-bedrock-client",
+  "version": "1.0.0",
+  "description": "A Minecraft Bedrock Edition client using bedrock-protocol",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "build": "npm install --production"
+  },
+  "keywords": [
+    "minecraft",
+    "bedrock",
+    "protocol"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "bedrock-protocol": "^3.37.0"
+  }
+}
