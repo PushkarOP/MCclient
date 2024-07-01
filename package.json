@@ -15,7 +15,7 @@
   "author": "Your Name",
   "license": "MIT",
   "dependencies": {
-    "set-interval-async/dynamic": "^3.0.3",
+    "set-interval-async": "^3.0.3",
     "bedrock-protocol": "^3.37.0"
   }
 }
