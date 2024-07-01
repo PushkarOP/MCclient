@@ -1,72 +1,66 @@
-const { BedrockStatus } = require('minecraft-server-util');
 const bedrock = require('bedrock-protocol');
-const { setIntervalAsync } = require('set-interval-async/dynamic');
+const setIntervalAsync = require('set-interval-async/dynamic').setIntervalAsync;
 
 const serverAddress = 'gadar2.aternos.me';
 const serverPort = 42035;
+const botUsername = 'MyBot';
 
 let client;
 
-async function pingServer() {
-  try {
-    const status = await BedrockStatus(serverAddress, serverPort);
-    const playerCount = status.players.online;
-    console.log(`Players online: ${playerCount}`);
-    return playerCount > 0;
-  } catch (error) {
-    console.error('Error pinging server:', error);
-    return false;
-  }
-}
-
 function connectToServer() {
+  client = bedrock.createClient({
+    host: serverAddress,
+    port: serverPort,
+    username: botUsername,
+  });
+
+  client.on('join', () => {
+    console.log('Bot joined the server');
+    checkPlayerList();
+  });
+
+  client.on('end', () => {
+    console.log('Bot disconnected from the server');
+  });
+}
+
+async function checkPlayerList() {
   try {
-    client = bedrock.createClient({
-      host: serverAddress,
-      port: serverPort,
+    await client.write('command_request', {
+      command: 'list',
+      origin: {
+        type: 'player',
+        uuid: '',
+        request_id: '',
+        player_entity_id: 1,
+      },
     });
 
-    client.on('join', () => {
-      console.log('Bot joined the server');
-    });
-
-    client.on('end', () => {
-      console.log('Bot disconnected from the server');
-    });
-
-    client.on('error', (error) => {
-      console.error('Client error:', error);
-      client.disconnect();
-      client = null;
+    client.on('command_response', (packet) => {
+      const response = packet.output;
+      const playerCountMatch = response.match(/There are (\d+)\/\d+ players online/);
+      if (playerCountMatch && parseInt(playerCountMatch[1], 10) > 0) {
+        console.log('Players online, maintaining connection');
+      } else {
+        console.log('No players online, disconnecting');
+        client.disconnect();
+      }
     });
   } catch (error) {
-    console.error('Error connecting to server:', error);
+    console.error('Error checking player list:', error);
+    client.disconnect();
   }
 }
 
-// Initial server status check and connection
-(async () => {
-  const playersOnline = await pingServer();
-  if (playersOnline) {
-    connectToServer();
-  } else {
-    console.log('No players online, not connecting.');
-  }
-})();
+// Connect to the server initially
+connectToServer();
 
-// Check server status every minute and connect/disconnect accordingly
+// Check player list every minute
 setIntervalAsync(async () => {
-  const playersOnline = await pingServer();
-  if (playersOnline) {
-    if (!client) {
-      console.log('Players online, connecting');
-      connectToServer();
-    }
+  if (client) {
+    await checkPlayerList();
   } else {
-    if (client) {
-      console.log('No players online, disconnecting');
-      client.disconnect();
-      client = null;
-    }
+    connectToServer();
   }
-}, 60000);
+}, 60000*5);
+          
