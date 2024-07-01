@@ -34,7 +34,7 @@ function connectToServer() {
 async function checkPlayerList() {
   try {
     client.write('command_request', {
-      command: 'list',
+      command: '/list',
       origin: {
         type: 'player',
         uuid: '',
