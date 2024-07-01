@@ -1,16 +1,63 @@
-const bedrock = require('bedrock-protocol')
-const client = bedrock.createClient({
-  host: 'gadar2.aternos.me',   // optional
-  port: 42035,         // optional, default 19132
-  username: 'Notch',   // the username you want to join as, optional if online mode
-  offline: false       // optional, default false. if true, do not login with Xbox Live. You will not be asked to sign-in if set to true.
-})
+const bedrock = require('bedrock-protocol');
+const setIntervalAsync = require('set-interval-async/dynamic').setIntervalAsync;
 
-client.on('text', (packet) => { // Listen for chat messages from the server and echo them back.
-  if (packet.source_name != client.username) {
-    client.queue('text', {
-      type: 'chat', needs_translation: false, source_name: client.username, xuid: '', platform_chat_id: '',
-      message: `${packet.source_name} said: ${packet.message} on ${new Date().toLocaleString()}`
-    })
+const serverAddress = 'gadar2.aternos.me';
+const serverPort = 42035;
+
+let client;
+
+function connectToServer() {
+  client = bedrock.createClient({
+    host: serverAddress,
+    port: serverPort,
+  });
+
+  client.on('join', () => {
+    console.log('Bot joined the server');
+    checkPlayerList();
+  });
+
+  client.on('end', () => {
+    console.log('Bot disconnected from the server');
+  });
+}
+
+async function checkPlayerList() {
+  try {
+    await client.write('command_request', {
+      command: 'list',
+      origin: {
+        type: 'player',
+        uuid: '',
+        request_id: '',
+        player_entity_id: 1,
+      },
+    });
+
+    client.on('command_response', (packet) => {
+      const response = packet.output;
+      const playerCountMatch = response.match(/There are (\d+)\/\d+ players online/);
+      if (playerCountMatch && parseInt(playerCountMatch[1], 10) > 0) {
+        console.log('Players online, maintaining connection');
+      } else {
+        console.log('No players online, disconnecting');
+        client.disconnect();
+      }
+    });
+  } catch (error) {
+    console.error('Error checking player list:', error);
+    client.disconnect();
   }
-})
+}
+
+// Connect to the server initially
+connectToServer();
+
+// Check player list every minute
+setIntervalAsync(async () => {
+  if (client) {
+    await checkPlayerList();
+  } else {
+    connectToServer();
+  }
+}, 60000);
