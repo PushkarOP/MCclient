@@ -1,3 +1,4 @@
+const { BedrockStatus } = require('minecraft-server-util');
 const bedrock = require('bedrock-protocol');
 const { setIntervalAsync } = require('set-interval-async/dynamic');
 
@@ -8,8 +9,8 @@ let client;
 
 async function pingServer() {
   try {
-    const pong = await bedrock.ping({ host: serverAddress, port: serverPort });
-    const playerCount = pong.players.online;
+    const status = await BedrockStatus(serverAddress, serverPort);
+    const playerCount = status.players.online;
     console.log(`Players online: ${playerCount}`);
     return playerCount > 0;
   } catch (error) {
