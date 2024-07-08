@@ -9,7 +9,6 @@ const botUsername = 'MyBot';
 const mcstatsAPI = `https://api.mcstatus.io/v2/status/bedrock/${serverAddress}:${serverPort}`;
 
 let client;
-let isConnected = false;
 const app = express();
 const port = 8000;
 
@@ -23,27 +22,18 @@ function connectToServer() {
 
   client.on('join', () => {
     console.log('Bot joined the server');
-    isConnected = true;
-    setTimeout(disconnectFromServer, 2.5 * 60 * 60 * 1000); // Disconnect after 2.5 hours
+    checkServerStatus();
   });
 
   client.on('end', () => {
     console.log('Bot disconnected from the server');
-    isConnected = false;
+    setTimeout(connectToServer, 5000); // Attempt to reconnect after 5 seconds
   });
 
   client.on('error', (error) => {
     console.error('Connection error:', error);
-    isConnected = false;
     setTimeout(connectToServer, 5000); // Attempt to reconnect after 5 seconds
   });
-}
-
-function disconnectFromServer() {
-  if (client) {
-    console.log('Disconnecting bot after 2.5 hours');
-    client.disconnect();
-  }
 }
 
 async function checkServerStatus() {
@@ -52,21 +42,21 @@ async function checkServerStatus() {
     const response = await axios.get(mcstatsAPI);
     const data = response.data;
     if (data.online) {
-      console.log('Server is online');
-      if (!isConnected) {
-        connectToServer();
+      const playerCount = data.players.online;
+      console.log(`Server is online. Players online: ${playerCount}`);
+      if (playerCount > 0) {
+        console.log('Players online, maintaining connection');
+      } else {
+        console.log('No players online, disconnecting');
+        client.disconnect();
       }
     } else {
-      console.log('Server is offline');
-      if (isConnected) {
-        disconnectFromServer();
-      }
+      console.log('Server is offline, disconnecting');
+      client.disconnect();
     }
   } catch (error) {
     console.error('Error checking server status:', error);
-    if (isConnected) {
-      disconnectFromServer();
-    }
+    client.disconnect();
   }
 }
 
@@ -85,10 +75,17 @@ app.get('/status', async (req, res) => {
   }
 });
 
-// Check server status every 1 minute
+// Connect to the server initially
+connectToServer();
+
+// Check server status every 5 minutes
 setIntervalAsync(async () => {
-  await checkServerStatus();
-}, 60000);
+  if (client) {
+    await checkServerStatus();
+  } else {
+    connectToServer();
+  }
+}, 60000 * 5);
 
 // Start the Express server
 app.listen(port, () => {
